@@ -42,7 +42,7 @@ private:
 	uint8_t _readRegister8(uint8_t reg);
 	uint16_t _readRegister16(uint8_t reg);
 	void _writeRegister8(uint8_t reg, uint8_t value);
-	const static u_int8_t _i2caddr = 0x40 << 1; // convert from 7 to 8 bit.
+	const static uint8_t _i2caddr = 0x40 << 1; // convert from 7 to 8 bit.
 	const static int _TRANSACTION_TIMEOUT = 100; // Wire NAK/Busy timeout in ms
 };
 
