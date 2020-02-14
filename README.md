@@ -1,19 +1,17 @@
 # HELIOS_Si7021
 
-A common driver supporting the SI7021 temperature and humidity for Arduino and Mbed OS. I started with the Adafruit's Si7021 driver for Arduino and spending significant development time into this. Later on I started over to create a Si7021 driver for Mbed OS. Now I combined the Mbed OS and Arduino versions into a single source.
+A common driver supporting the Si7021 temperature and humidity sensor for Arduino and Mbed OS. I started with the Adafruit Si7021 driver for Arduino and spent significant development time on this. Later on, I started over to create a Si7021 driver for Mbed OS. Now I combined the Mbed OS and Arduino versions into a single source.
 
 Helmut Tschemernjak
 www.radioshuttle.de
 
-## Suppported platforms
+## Supported platforms
 - Mbed OS
 - Arduino (ESP32 has been tested)
 
 
 ## TODOs
-- Arduino: add variable IO pins for I2C (multiple I2C's, ESP32 pin redirect)
+- Arduino: add variable IO pins for  I²C (multiple  I²C's, ESP32 pin redirect)
 
 ##  Credits
-This driver has initially been written by the RadioShuttle engineers (www.radioshuttle.de). Many thanks to everyone who helped to bring this project forward.
-
-
+This driver has initially been written by the RadioShuttle engineers (www.radioshuttle.de). Many thanks to everyone who helped bringing this project forward.
