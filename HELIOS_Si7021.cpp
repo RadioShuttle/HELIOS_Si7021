@@ -4,11 +4,23 @@
  * Licensed under the Apache License, Version 2.0);
  */
 
-#include "main.h"
+#ifdef __MBED__
+ #include "main.h"
+#elif ARDUINO
+ #define FEATURE_SI7021
+ #include <Wire.h>
+#else
+ #error "unkown platform"
+typedef PinName int;
+#endif
 
 #ifdef FEATURE_SI7021
 
 #include <HELIOS_Si7021.h>
+
+#ifndef UNUSED
+ #define UNUSED(x) (void)(x)
+#endif
 
 
 #define SI7021_MEASRH_HOLD_CMD		0xE5 // Measure Relative Humidity, Hold Master Mode
@@ -38,50 +50,70 @@ HELIOS_Si7021::HELIOS_Si7021(PinName sda, PinName scl)
 	_model = SI_7021;
 	_revision = 0;
 	_foundDevice = false;
-	_i2c = new I2C(sda, scl);
+	_initDone = false;
 	
+	_sda = sda;
+	_scl = scl;
+#ifdef __MBED__
+	_i2c = NULL;
+#endif
+}
+
+
+bool
+HELIOS_Si7021::begin(void)
+{
+	if (_initDone)
+		return true;
+		
+#ifdef __MBED__
+	if (!_i2c)
+		_i2c = new I2C(_sda, _scl);
+#elif ARDUINO
+	Wire.begin();
+#else
+#error "Unkown OS"
+#endif
+
 	reset();
 	
-	_data[0] = SI7021_READRHT_REG_CMD;
-	_i2c->write(_i2caddr, _data, 1);
-	_i2c->read(_i2caddr, _data, 1);
-	
-	if (_data[0] != 0x3A)
-		return;
+	if (_readRegister8(SI7021_READRHT_REG_CMD) != 0x3A)
+		return false;
+
+	_initDone = true;
 	_foundDevice = true;
-	
 	readSerialNumber();
 	_readRevision();
+	return true;
 }
 
 
 HELIOS_Si7021::~HELIOS_Si7021(void)
 {
+#ifdef __MBED__
 	if (_i2c)
 		delete _i2c;
+#endif
 }
 
 
 void HELIOS_Si7021::reset(void)
 {
-
-	_data[0] = SI7021_RESET_CMD;
-	_i2c->write(_i2caddr, _data, 1);
-	 wait_ms(50);
+	_writeRegister8(SI7021_RESET_CMD);
+	_waitMillis(50);
 }
 
 
 void HELIOS_Si7021::readSerialNumber(void)
 {
-
+	if (!_initDone)
+		begin();
 	if (!_foundDevice)
 		return;
 
-	_data[0] = SI7021_ID1_CMD >> 8;
-	_data[1] = SI7021_ID1_CMD & 0xFF;
-	_i2c->write(_i2caddr, _data, 2);
+	_writeRegister8x2(SI7021_ID1_CMD >> 8, SI7021_ID1_CMD & 0xFF);
+	_readBytes(_data, 8);
 
-	_i2c->read(_i2caddr, _data, 8);
 	sernum_a = _data[0];
 	sernum_a <<= 8;
 	sernum_a |= _data[2];
@@ -90,13 +122,10 @@ void HELIOS_Si7021::readSerialNumber(void)
 	sernum_a <<= 8;
 	sernum_a |= _data[6];
 	
+	
+	_writeRegister8x2(SI7021_ID2_CMD >> 8, SI7021_ID2_CMD & 0xFF);
+	_readBytes(_data, 8);
 
-
-	_data[0] = SI7021_ID2_CMD >> 8;
-	_data[1] = SI7021_ID2_CMD & 0xFF;
-	_i2c->write(_i2caddr, _data, 2);
-
-	_i2c->read(_i2caddr, _data, 8);
 	sernum_b = _data[0];
 	sernum_b <<= 8;
 	sernum_b |= _data[2];
@@ -104,40 +133,21 @@ void HELIOS_Si7021::readSerialNumber(void)
 	sernum_b |= _data[4];
 	sernum_b <<= 8;
 	sernum_b |= _data[6];
-	
-	
-	switch(sernum_b >> 24) {
-		case 0:
-		case 0xff:
-			_model = SI_Engineering_Samples;
-			break;
-		case 0x0D:
-			_model = SI_7013;
-			break;
-		case 0x14:
-			_model = SI_7020;
-			break;
-		case 0x15:
-			_model = SI_7021;
-			break;
-		default:
-			_model = SI_unkown;
-	}
 }
 
 
 void HELIOS_Si7021::_readRevision(void)
 {
+	if (!_initDone)
+		begin();
 	if (!_foundDevice)
 		return;
-
+		
 	_revision = 0;
 
-	_data[0] = SI7021_FIRMVERS_CMD >> 8;
-	_data[1] = SI7021_FIRMVERS_CMD & 0xFF;
-	_i2c->write(_i2caddr, _data, 2);
-
-	_i2c->read(_i2caddr, _data, 2);
+	_writeRegister8x2(SI7021_FIRMVERS_CMD >> 8, SI7021_FIRMVERS_CMD & 0xFF);
+	_readBytes(_data, 8);
+	
 	if (_data[0] == SI7021_REV_1) {
           _revision = 1;
 	} else if (_data[0] == SI7021_REV_2) {
@@ -147,9 +157,12 @@ void HELIOS_Si7021::_readRevision(void)
 
 
 float HELIOS_Si7021::readTemperature(void) {
+	if (!_initDone)
+		begin();
 	if (!_foundDevice)
 		return NAN;
 
+#if __MBED__
 	_data[0] = SI7021_MEASTEMP_NOHOLD_CMD;
 	_i2c->write(_i2caddr, _data, 1);
 
@@ -158,32 +171,67 @@ float HELIOS_Si7021::readTemperature(void) {
 	while(_i2c->read(_i2caddr, _data, 3) != 0) {
 		if (t.read_ms() > _TRANSACTION_TIMEOUT)
 			return NAN;
-		wait_ms(6); // 1/2 typical sample processing time
+		_waitMillis(6); // 1/2 typical sample processing time
 	}
-
 	float temperature = _data[0] << 8 | _data[1];
 	temperature *= 175.72;
 	temperature /= 65536;
 	temperature -= 46.85;
-	
+
 	return temperature;
+	
+#elif ARDUINO
+	Wire.beginTransmission(_i2caddr);
+	Wire.write(SI7021_MEASTEMP_NOHOLD_CMD);
+	uint8_t err = Wire.endTransmission(false);
+
+#ifdef ARDUINO_ARCH_ESP32
+	if(err && err != I2C_ERROR_CONTINUE) //ESP32 has to queue ReSTART operations.
+#else
+	if(err != 0)
+#endif
+		return NAN; //error
+		
+	uint32_t start = millis(); // start timeout
+	while(millis()-start < _TRANSACTION_TIMEOUT) {
+		if (Wire.requestFrom(_i2caddr, 3) == 3) {
+			uint16_t temp = Wire.read() << 8 | Wire.read();
+			uint8_t chxsum = Wire.read();
+			UNUSED(chxsum);
+
+			float temperature = temp;
+			temperature *= 175.72;
+		  temperature /= 65536;
+		  temperature -= 46.85;
+		  return temperature;
+		}
+		delay(6); // 1/2 typical sample processing time
+	  }
+
+	  return NAN; // Error timeout
+#else
+#error "Unkown OS"
+#endif
+
 }
 
 
 float HELIOS_Si7021::readHumidity(void)
 {
+	if (!_initDone)
+		begin();
 	if (!_foundDevice)
 		return NAN;
 
+#ifdef __MBED__
 	_data[0] = SI7021_MEASRH_NOHOLD_CMD;
 	_i2c->write(_i2caddr, _data, 1);
-	
 	Timer t;
 	t.start();
 	while(_i2c->read(_i2caddr, _data, 3) != 0) {
 		if (t.read_ms() > _TRANSACTION_TIMEOUT)
 			return NAN;
-		wait_ms(6); // 1/2 typical sample processing time
+		_waitMillis(6); // 1/2 typical sample processing time
 	}
 
 	float humidity = (_data[0] << 8 | _data[1]) * 125;
@@ -191,11 +239,51 @@ float HELIOS_Si7021::readHumidity(void)
 	humidity -= 6;
 
 	return humidity;
+
+#elif ARDUINO
+	Wire.beginTransmission(_i2caddr);
+	Wire.write(SI7021_MEASRH_NOHOLD_CMD);
+	uint8_t err = Wire.endTransmission(false);
+	//  Serial.print("Err: ");
+	//  Serial.println(err);
+	 
+#ifdef ARDUINO_ARCH_ESP32
+	if(err && err != I2C_ERROR_CONTINUE) //ESP32 has to queue ReSTART operations.
+#else
+	if (err != 0)
+#endif
+		return NAN; //error
+
+	uint32_t start = millis(); // start timeout
+	while(millis()-start < _TRANSACTION_TIMEOUT) {
+		if (Wire.requestFrom(_i2caddr, 3) == 3) {
+			uint16_t hum = Wire.read() << 8 | Wire.read();
+			uint8_t chxsum = Wire.read();
+			UNUSED(chxsum);
+
+			float humidity = hum;
+			humidity *= 125;
+			humidity /= 65536;
+			humidity -= 6;
+
+			return humidity;
+		}
+		delay(6); // 1/2 typical sample processing time
+	}
+	return NAN; // Error timeout
+#else
+#error "Unkown OS"
+#endif
 }
 
 
 const char *HELIOS_Si7021::getModelName(void)
 {
+	if (!_initDone)
+		begin();
+	if (!_foundDevice)
+		return "no device found";
+
 	switch(_model) {
 		case SI_Engineering_Samples:
 			return "SI engineering samples";
@@ -214,8 +302,104 @@ const char *HELIOS_Si7021::getModelName(void)
 
 HELIOS_Si7021::sensorType HELIOS_Si7021::getModel(void)
 {
+	if (!_initDone)
+		begin();
 	return _model;
 }
 
-#endif // FEATURE_SI7021
+uint8_t
+HELIOS_Si7021::_readRegister8(uint8_t reg) {
+#ifdef  __MBED__
+	_data[0] = reg;
+	_i2c->write(_i2caddr, _data, 1);
+	_i2c->read(_i2caddr, _data, 1);
+	return _data[0];
+#elif ARDUINO
+  uint8_t value;
+  Wire.beginTransmission(_i2caddr);
+  Wire.write(reg);
+  Wire.endTransmission(false);
 
+  uint32_t start = millis(); // start timeout
+  while(millis()-start < _TRANSACTION_TIMEOUT) {
+    if (Wire.requestFrom(_i2caddr, 1) == 1) {
+      value = Wire.read();
+      return value;
+    }
+    _waitMillis(2);
+  }
+  return 0; // Error timeout
+#else
+#error "Unknown OS"
+#endif
+}
+
+uint8_t
+HELIOS_Si7021::_readBytes(char *buffer, int len)
+{
+#ifdef __MBED__
+	_i2c->read(_i2caddr, buffer, len);
+#elif ARDUINO
+	bool gotData = false;
+	uint32_t start = millis(); // start timeout
+	while(millis()-start < _TRANSACTION_TIMEOUT) {
+	  if (Wire.requestFrom(_i2caddr, len) == len) {
+		gotData = true;
+		break;
+	  }
+	  delay(2);
+	}
+	if (!gotData)
+	  return 0; // error timeout
+	for (int i = 0; i < len; i++)
+		*buffer++ = Wire.read();
+#else
+#error "Unkown OS"
+#endif
+	return len;
+}
+
+void
+HELIOS_Si7021::_writeRegister8(uint8_t reg)
+{
+#ifdef __MBED__
+	_data[0] = reg;
+	_i2c->write(_i2caddr, _data, 1);
+#elif ARDUINO
+	Wire.beginTransmission(_i2caddr);
+	Wire.write(reg);
+	Wire.endTransmission();
+#else
+#error "Unkown OS"
+#endif
+}
+
+void
+HELIOS_Si7021::_writeRegister8x2(uint8_t reg, uint8_t reg2)
+{
+#ifdef __MBED__
+	_data[0] = SI7021_ID1_CMD >> 8;
+	_data[1] = SI7021_ID1_CMD & 0xFF;
+	_i2c->write(_i2caddr, _data, 2);
+#elif ARDUINO
+	Wire.beginTransmission(_i2caddr);
+	Wire.write(reg);
+	Wire.write(reg2);
+	Wire.endTransmission();
+#else
+#error "Unkown OS"
+#endif
+}
+
+
+void
+HELIOS_Si7021::_waitMillis(int millis)
+{
+#ifdef __MBED__
+	wait_ms(millis);
+#else
+	delay(millis);
+#endif
+}
+
+#endif // FEATURE_SI7021
