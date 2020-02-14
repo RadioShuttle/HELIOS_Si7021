@@ -60,6 +60,7 @@ private:
 	uint8_t _revision;
 	uint8_t _readRegister8(uint8_t reg);
 	uint8_t _readBytes(char *buffer, int len);
+	uint8_t _readCmdBytesTimeout(uint8_t reg, char *buffer, int len, int timeout_ms);
 	void _writeRegister8(uint8_t reg);
 	void _writeRegister8x2(uint8_t reg, uint8_t reg2);
 	void _waitMillis(int millis);

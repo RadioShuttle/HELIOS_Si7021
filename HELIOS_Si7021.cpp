@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Helmut Tschemernjak
+ * Copyright (c) 2020 Helmut Tschemernjak
  * 30826 Garbsen (Hannover) Germany
  * Licensed under the Apache License, Version 2.0);
  */
@@ -162,57 +162,16 @@ float HELIOS_Si7021::readTemperature(void) {
 	if (!_foundDevice)
 		return NAN;
 
-#if __MBED__
-	_data[0] = SI7021_MEASTEMP_NOHOLD_CMD;
-	_i2c->write(_i2caddr, _data, 1);
 
-	Timer t;
-	t.start();
-	while(_i2c->read(_i2caddr, _data, 3) != 0) {
-		if (t.read_ms() > _TRANSACTION_TIMEOUT)
-			return NAN;
-		_waitMillis(6); // 1/2 typical sample processing time
-	}
+	if (_readCmdBytesTimeout(SI7021_MEASTEMP_NOHOLD_CMD, _data, 3, 6) != 3)
+		return NAN;
+
 	float temperature = _data[0] << 8 | _data[1];
 	temperature *= 175.72;
 	temperature /= 65536;
 	temperature -= 46.85;
 
 	return temperature;
-	
-#elif ARDUINO
-	Wire.beginTransmission(_i2caddr);
-	Wire.write(SI7021_MEASTEMP_NOHOLD_CMD);
-	uint8_t err = Wire.endTransmission(false);
-
-#ifdef ARDUINO_ARCH_ESP32
-	if(err && err != I2C_ERROR_CONTINUE) //ESP32 has to queue ReSTART operations.
-#else
-	if(err != 0)
-#endif
-		return NAN; //error
-		
-	uint32_t start = millis(); // start timeout
-	while(millis()-start < _TRANSACTION_TIMEOUT) {
-		if (Wire.requestFrom(_i2caddr, 3) == 3) {
-			uint16_t temp = Wire.read() << 8 | Wire.read();
-			uint8_t chxsum = Wire.read();
-			UNUSED(chxsum);
-
-			float temperature = temp;
-			temperature *= 175.72;
-		  temperature /= 65536;
-		  temperature -= 46.85;
-		  return temperature;
-		}
-		delay(6); // 1/2 typical sample processing time
-	  }
-
-	  return NAN; // Error timeout
-#else
-#error "Unkown OS"
-#endif
-
 }
 
 
@@ -223,57 +182,14 @@ float HELIOS_Si7021::readHumidity(void)
 	if (!_foundDevice)
 		return NAN;
 
-#ifdef __MBED__
-	_data[0] = SI7021_MEASRH_NOHOLD_CMD;
-	_i2c->write(_i2caddr, _data, 1);
-	Timer t;
-	t.start();
-	while(_i2c->read(_i2caddr, _data, 3) != 0) {
-		if (t.read_ms() > _TRANSACTION_TIMEOUT)
-			return NAN;
-		_waitMillis(6); // 1/2 typical sample processing time
-	}
+	if (_readCmdBytesTimeout(SI7021_MEASRH_NOHOLD_CMD, _data, 3, 6) != 3)
+		return NAN;
 
 	float humidity = (_data[0] << 8 | _data[1]) * 125;
 	humidity /= 65536;
 	humidity -= 6;
 
 	return humidity;
-
-#elif ARDUINO
-	Wire.beginTransmission(_i2caddr);
-	Wire.write(SI7021_MEASRH_NOHOLD_CMD);
-	uint8_t err = Wire.endTransmission(false);
-	//  Serial.print("Err: ");
-	//  Serial.println(err);
-	 
-#ifdef ARDUINO_ARCH_ESP32
-	if(err && err != I2C_ERROR_CONTINUE) //ESP32 has to queue ReSTART operations.
-#else
-	if (err != 0)
-#endif
-		return NAN; //error
-
-	uint32_t start = millis(); // start timeout
-	while(millis()-start < _TRANSACTION_TIMEOUT) {
-		if (Wire.requestFrom(_i2caddr, 3) == 3) {
-			uint16_t hum = Wire.read() << 8 | Wire.read();
-			uint8_t chxsum = Wire.read();
-			UNUSED(chxsum);
-
-			float humidity = hum;
-			humidity *= 125;
-			humidity /= 65536;
-			humidity -= 6;
-
-			return humidity;
-		}
-		delay(6); // 1/2 typical sample processing time
-	}
-	return NAN; // Error timeout
-#else
-#error "Unkown OS"
-#endif
 }
 
 
@@ -358,6 +274,52 @@ HELIOS_Si7021::_readBytes(char *buffer, int len)
 #endif
 	return len;
 }
+
+
+uint8_t
+HELIOS_Si7021::_readCmdBytesTimeout(uint8_t reg, char *buffer, int len, int timeout_ms)
+{
+_data[0] = reg;
+
+#ifdef __MBED__
+	_i2c->write(_i2caddr, _data, 1);
+	Timer t;
+	t.start();
+	while(_i2c->read(_i2caddr, _data, len) != 0) {
+		if (t.read_ms() > _TRANSACTION_TIMEOUT)
+			return 0;
+		_waitMillis(timeout_ms); // 1/2 typical sample processing time
+	}
+	return len;
+
+#elif ARDUINO
+	Wire.beginTransmission(_i2caddr);
+	Wire.write(_data[0]);
+	uint8_t err = Wire.endTransmission(false);
+		 
+#ifdef ARDUINO_ARCH_ESP32
+	if(err && err != I2C_ERROR_CONTINUE) //ESP32 has to queue ReSTART operations.
+#else
+	if (err != 0)
+#endif
+		return 0; //error
+
+	uint32_t start = millis(); // start timeout
+	while(millis()-start < _TRANSACTION_TIMEOUT) {
+		if (Wire.requestFrom(_i2caddr, 3) == 3) {
+			for (int i = 0; i < 3; i++)
+				_data[i] = Wire.read();
+			return len;
+		}
+		delay(6); // 1/2 typical sample processing time
+	}
+	return 0; // Error timeout
+#else
+#error "Unkown OS"
+#endif
+}
+
+
 
 void
 HELIOS_Si7021::_writeRegister8(uint8_t reg)

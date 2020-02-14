@@ -22,8 +22,8 @@ void setup() {
 }
 
 void loop() {
-  Serial.print("Temperature: " + String(si7021.readTemperature(), 2));
-  Serial.print("\tHumidity: " + String(si7021.readHumidity(), 1) + "%");
+  Serial.print("Temperature: " + String(si7021.readTemperature(), 2) + "  ");
+  Serial.print("Humidity: " + String(si7021.readHumidity(), 1) + "%");
   Serial.println("");
   delay(1000);
 }
