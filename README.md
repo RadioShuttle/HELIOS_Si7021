@@ -3,8 +3,9 @@
 A common driver supporting the SI7021 temperature and humidity for Arduino and Mbed OS. I started with the Adafruit's Si7021 driver for Arduino and spending significant development time into this. Later on I started over to create a Si7021 driver for Mbed OS. Now I combined the Mbed OS and Arduino versions into a single source.
 
 Helmut Tschemernjak
+www.radioshuttle.de
 
-# Suppported platforms
+## Suppported platforms
 - Mbed OS
 - Arduino (ESP32 has been tested)
 
