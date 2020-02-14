@@ -11,7 +11,8 @@ www.radioshuttle.de
 
 
 ## TODOs
-- Arduino: add variable IO pins for  I²C (multiple  I²C's, ESP32 pin redirect)
+- Arduino: add variable IO pins for  I²C (multiple I²C, ESP32 pin redirect)
+- Add checksum support for temperature and humidity data
 
 ##  Credits
 This driver has initially been written by the RadioShuttle engineers (www.radioshuttle.de). Many thanks to everyone who helped bringing this project forward.

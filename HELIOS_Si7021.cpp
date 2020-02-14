@@ -61,7 +61,7 @@ HELIOS_Si7021::HELIOS_Si7021(PinName sda, PinName scl)
 
 
 bool
-HELIOS_Si7021::begin(void)
+HELIOS_Si7021::_init(void)
 {
 	if (_initDone)
 		return true;
@@ -82,7 +82,7 @@ HELIOS_Si7021::begin(void)
 
 	_initDone = true;
 	_foundDevice = true;
-	readSerialNumber();
+	_readSerialNumber();
 	_readRevision();
 	return true;
 }
@@ -103,11 +103,20 @@ void HELIOS_Si7021::reset(void)
 	_waitMillis(50);
 }
 
-
-void HELIOS_Si7021::readSerialNumber(void)
+bool
+HELIOS_Si7021::hasSensor(void)
 {
 	if (!_initDone)
-		begin();
+		_init();
+	return _foundDevice;
+}
+
+
+void
+HELIOS_Si7021::_readSerialNumber(void)
+{
+	if (!_initDone)
+		_init();
 	if (!_foundDevice)
 		return;
 
@@ -136,10 +145,16 @@ void HELIOS_Si7021::readSerialNumber(void)
 }
 
 
+uint64_t
+HELIOS_Si7021::getSerialNumber(void)
+{
+	return (uint64_t)sernum_a << 32 | (uint64_t)sernum_b;
+}
+
 void HELIOS_Si7021::_readRevision(void)
 {
 	if (!_initDone)
-		begin();
+		_init();
 	if (!_foundDevice)
 		return;
 		
@@ -158,7 +173,7 @@ void HELIOS_Si7021::_readRevision(void)
 
 float HELIOS_Si7021::readTemperature(void) {
 	if (!_initDone)
-		begin();
+		_init();
 	if (!_foundDevice)
 		return NAN;
 
@@ -178,7 +193,7 @@ float HELIOS_Si7021::readTemperature(void) {
 float HELIOS_Si7021::readHumidity(void)
 {
 	if (!_initDone)
-		begin();
+		_init();
 	if (!_foundDevice)
 		return NAN;
 
@@ -196,7 +211,7 @@ float HELIOS_Si7021::readHumidity(void)
 const char *HELIOS_Si7021::getModelName(void)
 {
 	if (!_initDone)
-		begin();
+		_init();
 	if (!_foundDevice)
 		return "no device found";
 
@@ -219,7 +234,7 @@ const char *HELIOS_Si7021::getModelName(void)
 HELIOS_Si7021::sensorType HELIOS_Si7021::getModel(void)
 {
 	if (!_initDone)
-		begin();
+		_init();
 	return _model;
 }
 
