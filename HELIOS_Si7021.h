@@ -8,7 +8,9 @@
  #include "Arduino.h"
  #ifndef PinName
   typedef int PinName;
-  #define NC -1
+  #ifndef NC
+    #define NC -1
+  #endif
  #endif
 #endif
 
@@ -30,8 +32,15 @@ public:
 	 */
 	void reset(void);
 	
+	/*
+	 * reads and returns the sensor serial number
+	 */
 	uint64_t getSerialNumber(void);
-	uint8_t getRevision(void) { return _revision; };
+	
+	/*
+	 * reads and returns the sensor revision
+	 */
+	int getRevision(void);
 	
 	float readTemperature(void);
 	float readHumidity(void);
@@ -57,12 +66,7 @@ private:
 
 	bool _foundDevice;
 	bool _initDone;
-	void _readRevision(void);
-	void _readSerialNumber(void);
 	PinName _sda, _scl;
-	uint32_t sernum_a, sernum_b;
-	sensorType _model;
-	uint8_t _revision;
 	/*
 	 * initializes the sensor and reads it version
 	 * return true if the device has been found.

@@ -46,9 +46,6 @@ typedef PinName int;
 
 HELIOS_Si7021::HELIOS_Si7021(PinName sda, PinName scl)
 {
-	sernum_a = sernum_b = 0;
-	_model = SI_7021;
-	_revision = 0;
 	_foundDevice = false;
 	_initDone = false;
 	
@@ -80,10 +77,9 @@ HELIOS_Si7021::_init(void)
 	if (_readRegister8(SI7021_READRHT_REG_CMD) != 0x3A)
 		return false;
 
-	_initDone = true;
 	_foundDevice = true;
-	_readSerialNumber();
-	_readRevision();
+	_initDone = true;
+
 	return true;
 }
 
@@ -112,13 +108,15 @@ HELIOS_Si7021::hasSensor(void)
 }
 
 
-void
-HELIOS_Si7021::_readSerialNumber(void)
+uint64_t
+HELIOS_Si7021::getSerialNumber(void)
 {
 	if (!_initDone)
 		_init();
 	if (!_foundDevice)
-		return;
+		return -1;
+
+	uint32_t sernum_a, sernum_b;
 
 	_writeRegister8x2(SI7021_ID1_CMD >> 8, SI7021_ID1_CMD & 0xFF);
 	_readBytes(_data, 8);
@@ -131,7 +129,6 @@ HELIOS_Si7021::_readSerialNumber(void)
 	sernum_a <<= 8;
 	sernum_a |= _data[6];
 	
-	
 	_writeRegister8x2(SI7021_ID2_CMD >> 8, SI7021_ID2_CMD & 0xFF);
 	_readBytes(_data, 8);
 
@@ -142,31 +139,27 @@ HELIOS_Si7021::_readSerialNumber(void)
 	sernum_b |= _data[4];
 	sernum_b <<= 8;
 	sernum_b |= _data[6];
-}
-
-
-uint64_t
-HELIOS_Si7021::getSerialNumber(void)
-{
+	
 	return (uint64_t)sernum_a << 32 | (uint64_t)sernum_b;
 }
 
-void HELIOS_Si7021::_readRevision(void)
+int
+HELIOS_Si7021::getRevision(void)
 {
 	if (!_initDone)
 		_init();
 	if (!_foundDevice)
-		return;
-		
-	_revision = 0;
+		return -1;
 
 	_writeRegister8x2(SI7021_FIRMVERS_CMD >> 8, SI7021_FIRMVERS_CMD & 0xFF);
-	_readBytes(_data, 8);
+	_readBytes(_data, 2);
 	
 	if (_data[0] == SI7021_REV_1) {
-          _revision = 1;
+          return 1;
 	} else if (_data[0] == SI7021_REV_2) {
-          _revision = 2;
+          return 2;
+	} else {
+		return -2; // unkown
 	}
 }
 
@@ -215,7 +208,7 @@ const char *HELIOS_Si7021::getModelName(void)
 	if (!_foundDevice)
 		return "no device found";
 
-	switch(_model) {
+	switch(getModel()) {
 		case SI_Engineering_Samples:
 			return "SI engineering samples";
 		case SI_7013:
@@ -235,7 +228,39 @@ HELIOS_Si7021::sensorType HELIOS_Si7021::getModel(void)
 {
 	if (!_initDone)
 		_init();
-	return _model;
+	if (!_foundDevice)
+		return SI_unkown;
+
+	_writeRegister8x2(SI7021_ID2_CMD >> 8, SI7021_ID2_CMD & 0xFF);
+	_readBytes(_data, 8);
+
+	uint32_t sernum_b;
+
+	sernum_b = _data[0];
+	sernum_b <<= 8;
+	sernum_b |= _data[2];
+	sernum_b <<= 8;
+	sernum_b |= _data[4];
+	sernum_b <<= 8;
+	sernum_b |= _data[6];
+	
+	switch(sernum_b >> 24) {
+		case 0:
+		case 0xff:
+			return SI_Engineering_Samples;
+			break;
+		case 0x0D:
+			return SI_7013;
+			break;
+		case 0x14:
+			return SI_7020;
+			break;
+		case 0x15:
+			return SI_7021;
+			break;
+		default:
+			return SI_unkown;
+	}
 }
 
 uint8_t
@@ -355,8 +380,8 @@ void
 HELIOS_Si7021::_writeRegister8x2(uint8_t reg, uint8_t reg2)
 {
 #ifdef __MBED__
-	_data[0] = SI7021_ID1_CMD >> 8;
-	_data[1] = SI7021_ID1_CMD & 0xFF;
+	_data[0] = reg;
+	_data[1] = reg2;
 	_i2c->write(_i2caddr, _data, 2);
 #elif ARDUINO
 	Wire.beginTransmission(_i2caddr);
