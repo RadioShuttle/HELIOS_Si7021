@@ -67,7 +67,11 @@ HELIOS_Si7021::_init(void)
 	if (!_i2c)
 		_i2c = new I2C(_sda, _scl);
 #elif ARDUINO
-	Wire.begin();
+ #ifdef ARDUINO_ARCH_ESP32
+ 	Wire.begin(_sda, _scl);
+ #else
+ 	Wire.begin();
+ #endif
 #else
 #error "Unkown OS"
 #endif
