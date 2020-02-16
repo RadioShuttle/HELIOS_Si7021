@@ -12,6 +12,13 @@ www.radioshuttle.de
 
 ## TODOs
 - Add checksum support for temperature and humidity data
+- Add support for multiple I2C configurations on D21
+
+
+## License and contributions
+
+The software is provided under the Apache 2.0 license. Contributions to this project are accepted under the same license.
+
 
 ##  Credits
 This driver has initially been written by the RadioShuttle engineers (www.radioshuttle.de). Many thanks to everyone who helped bringing this project forward.
