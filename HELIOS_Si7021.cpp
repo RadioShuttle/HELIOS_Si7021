@@ -329,7 +329,7 @@ _data[0] = reg;
 	_i2c->write(_i2caddr, _data, 1);
 	Timer t;
 	t.start();
-	while(_i2c->read(_i2caddr, _data, len) != 0) {
+	while(_i2c->read(_i2caddr, buffer, len) != 0) {
 		if (t.read_ms() > _TRANSACTION_TIMEOUT)
 			return 0;
 		_waitMillis(timeout_ms); // 1/2 typical sample processing time
@@ -338,7 +338,7 @@ _data[0] = reg;
 
 #elif ARDUINO
 	Wire.beginTransmission(_i2caddr);
-	Wire.write(_data[0]);
+	Wire.write(*buffer);
 	uint8_t err = Wire.endTransmission(false);
 		 
 #ifdef ARDUINO_ARCH_ESP32
@@ -352,10 +352,10 @@ _data[0] = reg;
 	while(millis()-start < _TRANSACTION_TIMEOUT) {
 		if (Wire.requestFrom(_i2caddr, 3) == 3) {
 			for (int i = 0; i < 3; i++)
-				_data[i] = Wire.read();
+				buffer[i] = Wire.read();
 			return len;
 		}
-		delay(6); // 1/2 typical sample processing time
+		delay(timeout_ms); // 1/2 typical sample processing time
 	}
 	return 0; // Error timeout
 #else
