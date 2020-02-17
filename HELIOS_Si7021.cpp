@@ -48,6 +48,7 @@ HELIOS_Si7021::HELIOS_Si7021(PinName sda, PinName scl)
 {
 	_foundDevice = false;
 	_initDone = false;
+	_skipDeviceInit = false;
 	
 	_sda = sda;
 	_scl = scl;
@@ -76,10 +77,12 @@ HELIOS_Si7021::_init(void)
 #error "Unkown OS"
 #endif
 
-	reset();
+	if (!_skipDeviceInit) {
+		reset();
 	
-	if (_readRegister8(SI7021_READRHT_REG_CMD) != 0x3A)
-		return false;
+		if (_readRegister8(SI7021_READRHT_REG_CMD) != 0x3A)
+			return false;
+	}
 
 	_foundDevice = true;
 	_initDone = true;

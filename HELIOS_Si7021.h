@@ -21,6 +21,14 @@ class HELIOS_Si7021 {
 public:
 	HELIOS_Si7021(PinName sda = NC, PinName scl = NC);
 	~HELIOS_Si7021();
+	
+	/*
+	 * When skipDeviceInit is called after the Constructor before any other
+	 * calls the inital device reset will be skipped, to avoid the 50 ms
+	 * reset delay. This allows the ESP32 MCU after deepsleep wakeups to skip
+	 * the device init, which was already done during the cold boot.
+	 */
+	void skipDeviceInit() { _skipDeviceInit = true; };
 
 	/*
 	 * check if the sensor is avilable
@@ -66,6 +74,7 @@ private:
 
 	bool _foundDevice;
 	bool _initDone;
+	bool _skipDeviceInit;
 	PinName _sda, _scl;
 	/*
 	 * initializes the sensor and reads it version
