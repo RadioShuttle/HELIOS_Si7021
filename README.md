@@ -7,7 +7,7 @@ www.radioshuttle.de
 
 ## Supported platforms
 - Mbed OS
-- Arduino (ESP32 has been tested)
+- Arduino (ESP32, D21 has been tested)
 
 
 ## TODOs
