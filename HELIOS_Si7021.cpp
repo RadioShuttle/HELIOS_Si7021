@@ -5,7 +5,8 @@
  */
 
 #ifdef __MBED__
- #include "main.h"
+ #include "mbed.h"
+ #include "PinMap.h"
 #elif ARDUINO
  #define FEATURE_SI7021
  #include <Wire.h>
@@ -405,7 +406,7 @@ void
 HELIOS_Si7021::_waitMillis(int millis)
 {
 #ifdef __MBED__
-	wait_ms(millis);
+	wait_us(millis * 1000);
 #else
 	delay(millis);
 #endif
