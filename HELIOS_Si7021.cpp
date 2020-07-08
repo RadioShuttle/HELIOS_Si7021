@@ -6,7 +6,7 @@
 
 #ifdef __MBED__
  #include "mbed.h"
- #include "PinMap.h"
+ #include "xPinMap.h"
 #elif ARDUINO
  #define FEATURE_SI7021
  #include <Wire.h>
