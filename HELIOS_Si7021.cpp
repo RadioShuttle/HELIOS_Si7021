@@ -346,7 +346,7 @@ _data[0] = reg;
 	uint8_t err = Wire.endTransmission(false);
 		 
 #ifdef ARDUINO_ARCH_ESP32
-	if(err && err != I2C_ERROR_CONTINUE) //ESP32 has to queue ReSTART operations.
+	if(err && err != 7) // 1.0.x SDK I2C_ERROR_CONTINUE, ESP32 has to queue ReSTART operations.
 #else
 	if (err != 0)
 #endif
