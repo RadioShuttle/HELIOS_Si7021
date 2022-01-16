@@ -343,15 +343,11 @@ _data[0] = reg;
 #elif ARDUINO
 	Wire.beginTransmission(_i2caddr);
 	Wire.write(*buffer);
-	uint8_t err = Wire.endTransmission(false);
+	uint8_t err = Wire.endTransmission();
 		 
-#ifdef ARDUINO_ARCH_ESP32
-	if(err && err != 7) // 1.0.x SDK I2C_ERROR_CONTINUE, ESP32 has to queue ReSTART operations.
-#else
 	if (err != 0)
-#endif
 		return 0; //error
-
+	delay(20);
 	uint32_t start = millis(); // start timeout
 	while(millis()-start < _TRANSACTION_TIMEOUT) {
 		if (Wire.requestFrom(_i2caddr, 3) == 3) {
